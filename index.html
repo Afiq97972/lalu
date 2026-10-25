@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lalu · App navigasi buatan Malaysia</title>
+<meta name="description" content="Lalu: app navigasi buatan Malaysia. Kos tol dan minyak setiap laluan, mod motosikal, hentian solat dan R&R sepanjang jalan. Daftar akses beta.">
+<meta property="og:title" content="Lalu · App navigasi buatan Malaysia">
+<meta property="og:description" content="Tahu kos tol dan minyak sebelum bertolak. Daftar akses beta Lalu.">
+<meta name="theme-color" content="#0F7C78">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Lalu landing: jalur kuning garisan jalan sebagai motif, kad laluan RM sebagai visual utama */
+:root{
+  --bg:#F5F8F7; --panel:#FFFFFF; --ink:#0E2A33; --muted:#4F6569; --line:#DCE4E3;
+  --accent:#0F7C78; --accent-ink:#FFFFFF; --lane:#F2B705; --lane-ink:#2B2100; --soft:#E6F2F1;
+  --ok:#1F6B41; --danger:#B0321F;
+  --display:'Bricolage Grotesque','Figtree',system-ui,sans-serif;
+  --body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0B1619; --panel:#13232A; --ink:#E7F0EF; --muted:#9DB2B4; --line:#24393F;
+  --accent:#2DB3AC; --accent-ink:#06201F; --soft:#17333A; --ok:#5BC48A; --danger:#F08A78; color-scheme:dark;
+}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.025em;line-height:1.08;margin:0;text-wrap:balance}
+h1{font-weight:800;font-size:clamp(38px,6.4vw,66px)}
+h2{font-weight:800;font-size:clamp(28px,4.2vw,42px)}
+h3{font-weight:700;font-size:20px;letter-spacing:-.01em}
+p{margin:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:14px;padding:15px 22px;font:inherit;font-weight:700;font-size:17px;text-decoration:none;cursor:pointer;min-height:52px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.lane{background:var(--lane);color:var(--lane-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--lane);outline-offset:2px}
+
+/* header */
+header{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;padding-bottom:12px}
+.logo{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.03em;color:var(--accent);text-decoration:none}
+.logo i{display:block;width:5px;height:22px;border-radius:3px;background:var(--lane)}
+header .btn{padding:10px 16px;min-height:44px;font-size:15px}
+
+/* hero */
+.hero{padding:56px 0 64px}
+.hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:18px}
+.eyebrow::before{content:"";width:22px;height:4px;border-radius:2px;background:var(--lane)}
+.hero p.lead{font-size:20px;color:var(--muted);margin-top:20px;max-width:34ch}
+.hero .ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.counter{margin-top:18px;font-size:15px;color:var(--muted)}
+
+.phone{justify-self:center;width:min(340px,100%);background:var(--panel);border-radius:34px;padding:14px;box-shadow:0 30px 70px rgba(14,42,51,.18),0 0 0 1px var(--line);position:relative}
+.phone .map{height:150px;border-radius:22px;background:#E3ECE8;position:relative;overflow:hidden}
+@media (prefers-color-scheme:dark){.phone .map{background:#1B2E33}}
+.phone .road{position:absolute;height:10px;border-radius:5px;transform-origin:left center}
+.phone .rc{border:1.5px solid var(--line);border-radius:16px;padding:10px 12px;margin-top:10px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.phone .rc.sel{border:2px solid var(--accent);background:var(--soft)}
+.phone .rc b{font-family:var(--display);font-size:22px;letter-spacing:-.02em}
+.phone .rc .rm{font-family:var(--display);font-weight:800;font-size:19px}
+.phone .rc small{color:var(--muted);font-size:13px}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;grid-column:1/-1;justify-self:start;margin-bottom:2px}
+.pill.fast{background:var(--accent);color:var(--accent-ink)}
+.pill.cheap{background:var(--lane);color:var(--lane-ink)}
+.phone .caption{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+
+/* lane divider */
+.lane{height:6px;background:repeating-linear-gradient(90deg,var(--lane) 0 34px,transparent 34px 58px);opacity:.9}
+
+/* features */
+section{padding:72px 0}
+.sec-head{max-width:640px;margin-bottom:36px}
+.sec-head p{color:var(--muted);margin-top:12px;font-size:18px}
+.feats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.feat{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:24px;display:flex;flex-direction:column;gap:10px}
+.feat .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;color:#fff}
+.feat p{color:var(--muted)}
+.feat .ex{font-size:15px;font-weight:600;color:var(--ink);background:var(--soft);border-radius:12px;padding:10px 12px;margin-top:4px}
+
+/* trust */
+.trust{background:var(--ink);color:var(--bg)}
+.trust h2{color:var(--bg)}
+.trust .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;margin-top:32px}
+.trust .grid div{border-top:3px solid var(--lane);padding-top:14px}
+.trust .grid p{opacity:.82;margin-top:8px}
+@media (prefers-color-scheme:dark){.trust{background:#E7F0EF;color:#0E2A33}.trust h2{color:#0E2A33}}
+
+/* form */
+.signup .wrap{display:grid;grid-template-columns:.9fr 1.1fr;gap:48px;align-items:start}
+.signup .side p{color:var(--muted);margin-top:14px}
+.perks{list-style:none;padding:0;margin:22px 0 0;display:flex;flex-direction:column;gap:12px}
+.perks li{display:flex;gap:12px;align-items:flex-start}
+.perks li::before{content:"";flex:0 0 10px;height:10px;margin-top:9px;border-radius:3px;background:var(--lane)}
+form{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:26px;display:flex;flex-direction:column;gap:16px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--soft);padding:5px;border-radius:14px}
+.seg label{display:block;cursor:pointer;position:relative}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label span{display:block;text-align:center;padding:11px;border-radius:10px;font-weight:700;font-size:15px}
+.seg input:checked+span{background:var(--panel);box-shadow:0 2px 8px rgba(14,42,51,.12)}
+.seg input:focus-visible+span{outline:3px solid var(--lane);outline-offset:2px}
+.hero .wrap>*,.signup .wrap>*,.biz .wrap>*{min-width:0}
+.f{display:flex;flex-direction:column;gap:6px}
+.f label{font-weight:600;font-size:15px}
+.f small{color:var(--muted);font-size:13px}
+.f input,.f select{font:inherit;font-size:16px;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--muted)}
+.check input{width:20px;height:20px;margin-top:2px;flex:0 0 20px;accent-color:var(--accent)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.err{color:var(--danger);font-weight:600;font-size:15px}
+.done{background:var(--panel);border:2px solid var(--accent);border-radius:24px;padding:28px;display:flex;flex-direction:column;gap:14px}
+.done h3{font-size:26px}
+.done p{color:var(--muted)}
+.done .ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+
+/* biz */
+.biz{background:var(--soft)}
+.biz .wrap{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.biz ul{margin:16px 0 0;padding-left:20px;color:var(--muted);display:flex;flex-direction:column;gap:8px}
+
+/* faq */
+.faq{max-width:760px}
+details{border-bottom:1px solid var(--line);padding:18px 0}
+summary{font-weight:700;font-size:18px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::after{content:"+";font-family:var(--display);font-size:24px;line-height:1;color:var(--accent)}
+details[open] summary::after{content:"–"}
+details p{color:var(--muted);margin-top:10px}
+
+footer{padding:36px 0 calc(36px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
+
+@media (max-width:860px){
+  .hero .wrap,.signup .wrap,.biz .wrap{grid-template-columns:1fr}
+  .hero{padding:32px 0 48px}
+  .feats{grid-template-columns:1fr}
+  .trust .grid{grid-template-columns:1fr;gap:20px}
+  section{padding:56px 0}
+}
+@media (max-width:420px){.row2{grid-template-columns:1fr}form{padding:20px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="Lalu, ke atas"><i></i>Lalu</a>
+    <a class="btn lane" href="#daftar">Daftar beta</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <div class="eyebrow">Beta dibuka · Terengganu dahulu</div>
+        <h1>App navigasi buatan Malaysia, untuk jalan Malaysia.</h1>
+        <p class="lead">Laluan terpantas, kos tol dan minyak untuk setiap pilihan, dan hentian solat, makan dan cas EV di sepanjang jalan. Semuanya dalam satu app.</p>
+        <div class="ctas">
+          <a class="btn primary" href="#daftar">Daftar akses awal</a>
+          <a class="btn ghost" href="#ciri">Lihat ciri</a>
+        </div>
+        <p class="counter">Percuma untuk navigasi harian. Daftar sekarang, dapat akses sebelum pelancaran di Play Store dan App Store.</p>
+      </div>
+
+      <div class="phone" aria-label="Contoh skrin Lalu: tiga laluan ke Kuala Lumpur dengan kos masing-masing" role="img">
+        <div class="map" aria-hidden="true">
+          <div class="road" style="left:18px;top:118px;width:330px;background:#A9B8BA;transform:rotate(-22deg)"></div>
+          <div class="road" style="left:18px;top:122px;width:300px;background:#A9B8BA;transform:rotate(-38deg)"></div>
+          <div class="road" style="left:18px;top:120px;width:320px;background:var(--accent);height:9px;transform:rotate(-30deg)"></div>
+        </div>
+        <div class="rc sel" aria-hidden="true"><span class="pill fast">Terpantas</span><b>4 j 28 min</b><span class="rm">RM119.90</span><small>448 km · tol + minyak</small></div>
+        <div class="rc" aria-hidden="true"><span class="pill cheap">Termurah · jimat RM41.50</span><b>5 j 40 min</b><span class="rm">RM78.40</span><small>431 km · tanpa tol</small></div>
+        <div class="rc" aria-hidden="true"><b>4 j 55 min</b><span class="rm">RM99.30</span><small>440 km · separuh tol</small></div>
+        <p class="caption">Contoh paparan. Angka ialah data contoh.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="lane" aria-hidden="true"></div>
+
+  <section id="ciri">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Dibina untuk soalan yang pemandu Malaysia betul-betul tanya</h2>
+        <p>Bukan sekadar "jalan mana paling cepat", tetapi berapa kosnya, di mana nak berhenti, dan laluan mana sesuai untuk motosikal.</p>
+      </div>
+      <div class="feats">
+        <article class="feat">
+          <span class="ic" style="background:#0F7C78" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M16 7h-6a3 3 0 000 6h4a3 3 0 010 6H7"/></svg></span>
+          <h3>Kos setiap laluan</h3>
+          <p>Tiga pilihan laluan, setiap satu dengan anggaran tol dan minyak, atau kos cas untuk EV.</p>
+          <span class="ex">"Laluan tanpa tol: 1 jam lebih lama, jimat RM41."</span>
+        </article>
+        <article class="feat">
+          <span class="ic" style="background:#2F5BD6" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3"/><circle cx="18.5" cy="17" r="3"/><path d="M5.5 17l4-7h5l4 7M9.5 10L8 6H5M14.5 10l1.5-4h3"/></svg></span>
+          <h3>Mod motosikal</h3>
+          <p>Laluan sesuai untuk rider, amaran hujan di depan, dan tempat berteduh terdekat.</p>
+          <span class="ex">"Hujan lebat 4 km di depan. Jejantas 1.2 km lagi."</span>
+        </article>
+        <article class="feat">
+          <span class="ic" style="background:#2E8B57" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-7a7 7 0 0114 0v7zM12 3v3M3 20h18"/></svg></span>
+          <h3>Hentian di sepanjang jalan</h3>
+          <p>Masjid dan surau, R&amp;R, stesen minyak dan pengecas EV, disusun ikut masa anda sampai.</p>
+          <span class="ex">"Surau dalam 18 min. Asar masuk 4:12 petang."</span>
+        </article>
+        <article class="feat">
+          <span class="ic" style="background:#E08A00" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.5"/></svg></span>
+          <h3>Laporan komuniti dan konvoi</h3>
+          <p>Lapor jem, banjir dan lubang jalan dengan satu ketik. Gerak bergrup dan nampak semua ahli di peta.</p>
+          <span class="ex">"Banjir 500 m di depan, disahkan 3 pemandu."</span>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="trust">
+    <div class="wrap">
+      <h2>Komitmen privasi kami</h2>
+      <div class="grid">
+        <div><h3>Pasukan tempatan</h3><p>Dibangunkan di Terengganu, untuk jalan dan kebiasaan pemandu Malaysia.</p></div>
+        <div><h3>Data tidak dijual</h3><p>Lokasi anda digunakan untuk navigasi dan laporan trafik tanpa nama sahaja, bukan untuk dijual kepada pengiklan.</p></div>
+        <div><h3>Anda yang kawal</h3><p>Padam akaun dan sejarah perjalanan bila-bila masa, terus dari dalam app.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="signup" id="daftar">
+    <div class="wrap">
+      <div class="side">
+        <h2>Daftar akses awal</h2>
+        <p>Kami buka beta secara berperingkat, ikut negeri dengan pendaftaran paling ramai.</p>
+        <ul class="perks">
+          <li>Akses beta sebelum pelancaran di Play Store dan App Store</li>
+          <li>Suara anda menentukan ciri seterusnya</li>
+          <li>Lencana "Perintis Lalu" untuk penguji awal</li>
+        </ul>
+      </div>
+
+      <div>
+        <form id="form" novalidate>
+          <div class="seg" role="radiogroup" aria-label="Jenis pendaftaran">
+            <label><input type="radio" name="jenis" value="Peribadi" id="j-peribadi" checked><span>Untuk diri sendiri</span></label>
+            <label><input type="radio" name="jenis" value="Syarikat" id="j-syarikat"><span>Untuk syarikat</span></label>
+          </div>
+
+          <div class="f">
+            <label for="nama">Nama</label>
+            <input id="nama" name="nama" autocomplete="name" maxlength="80" required>
+          </div>
+          <div class="row2">
+            <div class="f">
+              <label for="whatsapp">No. WhatsApp</label>
+              <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="012-345 6789" maxlength="20">
+            </div>
+            <div class="f">
+              <label for="emel">E-mel</label>
+              <input id="emel" name="emel" type="email" autocomplete="email" maxlength="120">
+            </div>
+          </div>
+          <small style="color:var(--muted);font-size:13px;margin-top:-8px">Isi sekurang-kurangnya satu: WhatsApp atau e-mel.</small>
+          <div class="row2">
+            <div class="f">
+              <label for="negeri">Negeri</label>
+              <select id="negeri" name="negeri" required>
+                <option value="">Pilih negeri</option>
+                <option>Johor</option><option>Kedah</option><option>Kelantan</option><option>Melaka</option>
+                <option>Negeri Sembilan</option><option>Pahang</option><option>Perak</option><option>Perlis</option>
+                <option>Pulau Pinang</option><option>Sabah</option><option>Sarawak</option><option>Selangor</option>
+                <option>Terengganu</option><option>W.P. Kuala Lumpur</option><option>W.P. Labuan</option><option>W.P. Putrajaya</option>
+                <option>Luar Malaysia</option>
+              </select>
+            </div>
+            <div class="f">
+              <label for="kenderaan">Kenderaan utama</label>
+              <select id="kenderaan" name="kenderaan" required>
+                <option value="">Pilih</option>
+                <option>Kereta</option><option>Motosikal</option><option>EV</option><option>Van / lori</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="bizFields" hidden>
+            <div class="row2">
+              <div class="f">
+                <label for="syarikat">Nama syarikat</label>
+                <input id="syarikat" name="syarikat" autocomplete="organization" maxlength="120">
+              </div>
+              <div class="f">
+                <label for="armada">Bilangan kenderaan</label>
+                <select id="armada" name="armada">
+                  <option value="">Pilih</option>
+                  <option>1–5</option><option>6–20</option><option>21–100</option><option>Lebih 100</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="hp" aria-hidden="true"><label for="website">Laman web</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+
+          <label class="check" for="setuju">
+            <input type="checkbox" id="setuju" name="setuju" required>
+            <span>Saya setuju Lalu menghubungi saya tentang akses beta dan pelancaran. Maklumat saya tidak dikongsi dengan pihak lain dan boleh dipadam atas permintaan (<a href="#privasi">notis privasi</a>).</span>
+          </label>
+
+          <p class="err" id="err" role="alert" hidden></p>
+          <button class="btn primary" type="submit" id="submitBtn">Daftar sekarang</button>
+        </form>
+
+        <div class="done" id="done" hidden tabindex="-1">
+          <h3>Terima kasih, anda dalam senarai!</h3>
+          <p>Kami akan hubungi anda bila beta dibuka untuk negeri anda. Sementara itu, anda boleh cuba versi web awal sekarang.</p>
+          <div class="ctas">
+            <a class="btn primary" href="beta/">Cuba beta web</a>
+            <a class="btn lane" id="shareWa" href="#" target="_blank" rel="noopener">Ajak kawan di WhatsApp</a>
+          </div>
+          <p style="font-size:14px">Beta web masih dalam ujian dan mungkin dihadkan bila pengguna terlalu ramai.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="biz" id="bisnes">
+    <div class="wrap">
+      <div>
+        <h2>Lalu Bisnes untuk syarikat dan kontraktor</h2>
+        <p style="color:var(--muted);margin-top:14px">Untuk pasukan yang bergerak setiap hari: runner, penghantaran, juruteknik, sales lapangan dan kontraktor projek.</p>
+        <ul>
+          <li>Lihat lokasi kenderaan pasukan secara langsung</li>
+          <li>Laporan kilometer dan kos minyak bulanan untuk tuntutan</li>
+          <li>Polisi data bertulis untuk keperluan audit syarikat</li>
+        </ul>
+      </div>
+      <div>
+        <p style="font-size:19px;font-weight:600">Pilot percuma 30 hari untuk syarikat terawal.</p>
+        <p style="color:var(--muted);margin-top:8px">Pilih "Untuk syarikat" dalam borang dan kami hubungi anda dalam 2 hari bekerja.</p>
+        <a class="btn primary" href="#daftar" id="bizCta" style="margin-top:18px">Mohon pilot syarikat</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap faq">
+      <h2 style="margin-bottom:12px">Soalan lazim</h2>
+      <details><summary>Bila Lalu ada di Play Store dan App Store?</summary><p>Lalu sedang dalam ujian beta. Pendaftar akan dimaklumkan dahulu sebaik app tersedia di stor.</p></details>
+      <details><summary>Adakah Lalu percuma?</summary><p>Ya. Navigasi, laporan dan hentian sepanjang laluan adalah percuma. Ciri tambahan untuk pengguna tegar dan syarikat akan ditawarkan secara berasingan.</p></details>
+      <details><summary>Kawasan mana yang dilancarkan dahulu?</summary><p>Terengganu dahulu, kemudian negeri dengan pendaftaran paling ramai. Sebab itu kami tanya negeri anda.</p></details>
+      <details><summary>Apa yang berlaku pada data lokasi saya?</summary><p>Lokasi digunakan untuk navigasi dan untuk mengira trafik tanpa nama. Kami tidak menjual data lokasi kepada pengiklan, dan anda boleh memadam akaun serta sejarah perjalanan bila-bila masa.</p></details>
+      <details id="privasi"><summary>Notis privasi pendaftaran</summary><p>Kami mengumpul nama, nombor WhatsApp atau e-mel, negeri, jenis kenderaan dan maklumat syarikat (jika diisi) semata-mata untuk menghubungi anda tentang beta Lalu dan pelancarannya. Maklumat ini tidak dikongsi dengan pihak ketiga. Untuk memadam maklumat anda, hubungi kami di [EMEL HUBUNGAN].</p></details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Lalu · Kreativ Digital</span>
+    <span>Hubungi: [EMEL HUBUNGAN]</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  // Tampal URL Web App Google Apps Script di sini selepas deploy (lihat panduan)
+  var ENDPOINT = '';
+
+  var form = document.getElementById('form');
+  var err = document.getElementById('err');
+  var btn = document.getElementById('submitBtn');
+  var biz = document.getElementById('bizFields');
+  var params = new URLSearchParams(location.search);
+
+  function syncJenis(){
+    var isBiz = document.getElementById('j-syarikat').checked;
+    biz.hidden = !isBiz;
+  }
+  document.getElementById('j-peribadi').addEventListener('change', syncJenis);
+  document.getElementById('j-syarikat').addEventListener('change', syncJenis);
+  document.getElementById('bizCta').addEventListener('click', function(){
+    document.getElementById('j-syarikat').checked = true; syncJenis();
+  });
+
+  function showErr(msg, el){
+    err.textContent = msg; err.hidden = false;
+    if (el) el.focus();
+  }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    err.hidden = true;
+    var v = function(id){ return (document.getElementById(id).value || '').trim(); };
+    var wa = v('whatsapp').replace(/[^\d+]/g, '');
+    var emel = v('emel');
+
+    if (!v('nama')) return showErr('Sila isi nama anda.', document.getElementById('nama'));
+    if (!wa && !emel) return showErr('Isi nombor WhatsApp atau e-mel supaya kami boleh hubungi anda.', document.getElementById('whatsapp'));
+    if (wa && (wa.replace('+','').length < 9 || wa.replace('+','').length > 15)) return showErr('Nombor WhatsApp nampak tidak lengkap. Contoh: 012-345 6789.', document.getElementById('whatsapp'));
+    if (emel && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emel)) return showErr('Alamat e-mel tidak sah. Contoh: nama@gmail.com.', document.getElementById('emel'));
+    if (!v('negeri')) return showErr('Sila pilih negeri.', document.getElementById('negeri'));
+    if (!v('kenderaan')) return showErr('Sila pilih kenderaan utama.', document.getElementById('kenderaan'));
+    var isBiz = document.getElementById('j-syarikat').checked;
+    if (isBiz && !v('syarikat')) return showErr('Sila isi nama syarikat.', document.getElementById('syarikat'));
+    if (!document.getElementById('setuju').checked) return showErr('Sila tandakan persetujuan untuk dihubungi.', document.getElementById('setuju'));
+    if (!ENDPOINT) return showErr('Borang belum disambungkan ke Google Sheet. Pemilik laman perlu tampal URL skrip.', null);
+
+    var kod = Math.random().toString(36).slice(2, 8).toUpperCase();
+    var data = {
+      kod: kod,
+      nama: v('nama'), whatsapp: wa, emel: emel, negeri: v('negeri'), kenderaan: v('kenderaan'),
+      jenis: isBiz ? 'Syarikat' : 'Peribadi', syarikat: isBiz ? v('syarikat') : '', armada: isBiz ? v('armada') : '',
+      website: v('website'),
+      sumber: params.get('utm_source') || '', kempen: params.get('utm_campaign') || '',
+      rujukan: params.get('ref') || '', setuju: true
+    };
+
+    btn.disabled = true; btn.textContent = 'Menghantar...';
+    fetch(ENDPOINT, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) })
+      .then(function(){
+        form.hidden = true;
+        var done = document.getElementById('done');
+        done.hidden = false; done.focus();
+        var link = location.origin + location.pathname + '?ref=' + kod;
+        var msg = 'Aku dah daftar beta Lalu, app navigasi buatan Malaysia. Ada kos tol + minyak setiap laluan dan hentian surau/R&R. Daftar sini: ' + link;
+        document.getElementById('shareWa').href = 'https://wa.me/?text=' + encodeURIComponent(msg);
+        try { localStorage.setItem('lalu.daftar', '1'); } catch (x) {}
+      })
+      .catch(function(){
+        btn.disabled = false; btn.textContent = 'Daftar sekarang';
+        showErr('Pendaftaran gagal dihantar. Semak sambungan internet dan cuba lagi.', null);
+      });
+  });
+})();
+</script>
+</body>
+</html>
