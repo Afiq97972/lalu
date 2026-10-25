@@ -115,6 +115,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--lane);outline-o
 .me{width:20px;height:20px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 0 0 8px rgba(15,124,120,.22)}
 .dest{width:18px;height:18px;border-radius:4px;background:var(--ink);border:3px solid var(--lane);transform:rotate(45deg)}
 .leaflet-container{font-family:var(--body);background:var(--bg)}
+.dark-tiles .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.7)}
+.results .dist{float:right;font-weight:600;color:var(--accent);margin-left:8px;font-size:13px}
 .leaflet-control-attribution{font-size:10px}
 .leaflet-popup-content{margin:12px 14px;font-family:var(--body)}
 .leaflet-popup-content b{font-size:15px}
@@ -129,7 +131,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--lane);outline-o
 <div class="top" id="top">
   <div class="search">
     <span class="brand"><i></i>Lalu</span>
-    <input id="q" type="search" placeholder="Nak ke mana?" autocomplete="off" aria-label="Cari destinasi">
+    <input id="q" type="search" placeholder="Nak ke mana? Taip, tekan Cari" autocomplete="off" enterkeyhint="search" aria-label="Cari destinasi">
     <button class="iconbtn" id="settingsBtn" aria-label="Tetapan kos">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
     </button>
@@ -225,10 +227,12 @@ async function getJSON(url, opts){
 /* ---------- peta ---------- */
 const dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
 const map = L.map('map', {zoomControl:false, attributionControl:true}).setView(DEFAULT_POS, 14);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/' + (dark ? 'dark_all' : 'rastertiles/voyager') + '/{z}/{x}/{y}{r}.png', {
-  maxZoom: 19, subdomains: 'abcd',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+// Beta: tiles OpenStreetMap standard (tiada kunci API). Tukar ke penyedia berbayar sebelum trafik tinggi.
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(map);
+if (dark) document.getElementById('map').classList.add('dark-tiles');
 
 const meMarker = L.marker(DEFAULT_POS, {icon: L.divIcon({className:'', html:'<div class="me"></div>', iconSize:[20,20], iconAnchor:[10,10]}), zIndexOffset:1000}).addTo(map);
 let destMarker = null;
@@ -343,24 +347,38 @@ function field(k, label, val, step){
 }
 
 /* ---------- carian ---------- */
-let qTimer, qCtl;
-$('#q').addEventListener('input', e => {
-  clearTimeout(qTimer);
-  const v = e.target.value.trim();
-  if (v.length < 3) { $('#results').hidden = true; return; }
-  qTimer = setTimeout(() => search(v), 450);
+// Carian hanya bila pengguna tekan Cari/Enter (polisi Nominatim melarang autocomplete).
+// Urutan: berhampiran dahulu, kemudian seluruh Malaysia, kemudian seluruh dunia.
+let qCtl, lastQ = '', lastAt = 0;
+$('#q').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); const v = e.target.value.trim(); if (v.length >= 2) { e.target.blur(); search(v); } }
 });
+$('#q').addEventListener('input', e => { if (!e.target.value.trim()) $('#results').hidden = true; });
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function nomi(v, extra, signal){
+  const since = Date.now() - lastAt;
+  if (since < 1100) await wait(1100 - since);
+  lastAt = Date.now();
+  return getJSON('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=ms,en' + extra + '&q=' + encodeURIComponent(v), {signal});
+}
 async function search(v){
+  if (v === lastQ && !$('#results').hidden) return;
+  lastQ = v;
   if (qCtl) qCtl.abort(); qCtl = new AbortController();
-  const vb = [S.me[1]-1.5, S.me[0]+1.5, S.me[1]+1.5, S.me[0]-1.5].join(',');
-  const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=ms,en&viewbox='+vb+'&q='+encodeURIComponent(v);
+  const box = $('#results');
+  box.innerHTML = '<button disabled><b>Mencari...</b><small>Utamakan tempat berhampiran anda</small></button>'; box.hidden = false;
+  const d = 0.6, vb = [S.me[1]-d, S.me[0]+d, S.me[1]+d, S.me[0]-d].join(',');
   try {
-    const data = await getJSON(url, {signal:qCtl.signal});
-    const box = $('#results');
-    if (!data.length) { box.innerHTML = '<button disabled><b>Tiada hasil</b><small>Cuba nama tempat lain atau tambah nama bandar.</small></button>'; box.hidden = false; return; }
-    box.innerHTML = data.map((d,i) => {
-      const parts = d.display_name.split(',');
-      return '<button data-i="'+i+'"><b>'+esc(parts[0])+'</b><small>'+esc(parts.slice(1).join(',').trim())+'</small></button>';
+    let data = await nomi(v, '&bounded=1&viewbox=' + vb, qCtl.signal), scope = 'Berhampiran';
+    if (!data.length) { data = await nomi(v, '&countrycodes=my', qCtl.signal); scope = 'Malaysia'; }
+    if (!data.length) { data = await nomi(v, '', qCtl.signal); scope = 'Luar Malaysia'; }
+    if (!data.length) { box.innerHTML = '<button disabled><b>Tiada hasil untuk "'+esc(v)+'"</b><small>Tempat ini mungkin belum ada dalam peta. Cuba nama jalan atau bandar, atau tekan lama pada peta untuk pilih titik.</small></button>'; return; }
+    data.forEach(r => r._d = hav(S.me, [+r.lat, +r.lon]));
+    data.sort((a, b) => a._d - b._d);
+    box.innerHTML = (scope === 'Luar Malaysia' ? '<button disabled><b>Tiada hasil di Malaysia</b><small>Ini hasil dari negara lain. Semak ejaan atau cuba nama jalan.</small></button>' : '') +
+      data.map((r,i) => {
+      const parts = r.display_name.split(',');
+      return '<button data-i="'+i+'"><span class="dist">'+fmtDist(r._d)+'</span><b>'+esc(parts[0])+'</b><small>'+esc(parts.slice(1).join(',').trim())+'</small></button>';
     }).join('');
     box.hidden = false;
     box.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
@@ -369,7 +387,7 @@ async function search(v){
       setDest([+d.lat, +d.lon], d.display_name.split(',')[0]);
     });
   } catch(err) {
-    if (err.name !== 'AbortError') toast('Carian gagal. Semak internet dan cuba lagi.');
+    if (err.name !== 'AbortError') { lastQ = ''; box.hidden = true; toast('Carian gagal. Semak internet dan cuba lagi.'); }
   }
 }
 map.on('contextmenu', e => setDest([e.latlng.lat, e.latlng.lng], 'Titik dipilih'));
