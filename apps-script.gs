@@ -73,9 +73,14 @@ function getSheet_() {
   return sheet;
 }
 
-// Jalankan sekali dari editor untuk beri kebenaran akses Sheet
+// Jalankan dari editor: beri kebenaran, tetapkan zon waktu Malaysia, buang baris ujian
 function setup() {
-  getSheet_();
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  ss.setSpreadsheetTimeZone('Asia/Kuala_Lumpur');
+  var sheet = getSheet_();
+  for (var r = sheet.getLastRow(); r >= 2; r--) {
+    if (String(sheet.getRange(r, 3).getValue()).indexOf('UJIAN Claude') === 0) sheet.deleteRow(r);
+  }
 }
 
 function clean_(v, max) {
