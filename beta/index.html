@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <meta name="theme-color" content="#0E2A33">
 <title>Lalu</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lalu">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
@@ -108,6 +115,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--lane);outline-o
 .rbtn .ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;color:#fff}
 .field{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
 .field input{width:96px;text-align:right;font:inherit;font-size:16px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.install{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 150px);z-index:22;max-width:520px;background:var(--panel);border-radius:16px;box-shadow:var(--shadow);padding:12px 14px;display:flex;gap:12px;align-items:center}
+.install img{width:44px;height:44px;border-radius:11px;flex:0 0 44px}
+.install .tx{flex:1;min-width:0;font-size:14px;line-height:1.35}
+.install .tx b{display:block;font-size:15px}
+.install .tx span{color:var(--muted)}
+.install .x{width:36px;height:36px;border-radius:10px;color:var(--muted);flex:0 0 36px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--sheet-h,180px) + 20px);z-index:50;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
 
 /* penanda peta */
@@ -158,6 +171,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--lane);outline-o
 <div id="alert" class="alert" hidden></div>
 <div id="modalRoot"></div>
 <div id="toast" class="toast" hidden></div>
+<div id="install" class="install" role="region" aria-label="Pasang Lalu" hidden>
+  <img src="icons/icon-192.png" alt="">
+  <div class="tx" id="installText"></div>
+  <button class="btn primary" id="installBtn" hidden>Pasang</button>
+  <button class="x" id="installClose" aria-label="Tutup">✕</button>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -700,6 +719,40 @@ loadReports();
 render();
 startGPS(true);
 window.addEventListener('resize', setSheetH);
+
+/* ---------- pasang sebagai app (PWA) ---------- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+(function(){
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const box = $('#install'), txt = $('#installText'), btn = $('#installBtn');
+  if (standalone || store.get('installDismissed', 0) > Date.now()) return;
+  const hide = days => { box.hidden = true; store.set('installDismissed', Date.now() + days*864e5); };
+  $('#installClose').onclick = () => hide(7);
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferred = e;
+    txt.innerHTML = '<b>Pasang Lalu di phone</b><span>Ikon di skrin utama, buka penuh skrin macam app.</span>';
+    btn.hidden = false; box.hidden = false;
+  });
+  btn.onclick = async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    const r = await deferred.userChoice.catch(() => null);
+    deferred = null;
+    if (r && r.outcome === 'accepted') { box.hidden = true; toast('Lalu dipasang. Buka dari skrin utama.'); }
+    else hide(3);
+  };
+  window.addEventListener('appinstalled', () => { box.hidden = true; });
+  if (ios) {
+    setTimeout(() => {
+      txt.innerHTML = '<b>Pasang Lalu di iPhone</b><span>Tekan butang Kongsi <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4M5 12v8h14v-8"/></svg> kemudian <b style="display:inline">Add to Home Screen</b>.</span>';
+      box.hidden = false;
+    }, 2500);
+  }
+})();
 })();
 </script>
 </body>

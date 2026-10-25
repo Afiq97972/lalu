@@ -1,0 +1,19 @@
+{
+  "name": "Lalu · Navigasi buatan Malaysia",
+  "short_name": "Lalu",
+  "description": "Navigasi dengan kos tol dan minyak setiap laluan, mod motosikal, dan hentian sepanjang jalan.",
+  "id": "/lalu/beta/",
+  "start_url": "/lalu/beta/?utm_source=pwa",
+  "scope": "/lalu/beta/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1619",
+  "theme_color": "#0F7C78",
+  "lang": "ms",
+  "categories": ["navigation", "travel"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
