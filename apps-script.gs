@@ -1,11 +1,11 @@
 /**
  * Lalu: terima pendaftaran beta dari landing page dan simpan ke Google Sheet.
- * Cara guna: Google Sheet baru > Extensions > Apps Script > tampal kod ini >
+ * Projek Apps Script berdiri sendiri; Sheet dibuka ikut ID.
  * Deploy > New deployment > Web app (Execute as: Me, Who has access: Anyone).
  * Salin URL Web app ke ENDPOINT dalam index.html.
  */
 
-var SHEET_NAME = 'Pendaftar';
+var SHEET_ID = '1Y7F2n3QoA4Oj-ZCQD3Ecl3M7kz02FVBCCLEzHlmGqBw';
 var HEADERS = ['Masa', 'Kod', 'Nama', 'WhatsApp', 'E-mel', 'Negeri', 'Kenderaan',
                'Jenis', 'Syarikat', 'Armada', 'Sumber (utm)', 'Kempen (utm)', 'Dirujuk oleh', 'Setuju dihubungi'];
 
@@ -61,15 +61,21 @@ function doPost(e) {
 }
 
 function getSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
-    sheet.appendRow(HEADERS);
+  var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+  if (sheet.getLastRow() === 0 || sheet.getRange(1, 1).getValue() !== 'Masa') {
+    sheet.insertRowBefore(1);
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  }
+  if (sheet.getFrozenRows() !== 1) {
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
   }
   return sheet;
+}
+
+// Jalankan sekali dari editor untuk beri kebenaran akses Sheet
+function setup() {
+  getSheet_();
 }
 
 function clean_(v, max) {
