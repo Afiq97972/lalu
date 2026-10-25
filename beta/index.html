@@ -129,6 +129,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--lane);outline-o
 .dest{width:18px;height:18px;border-radius:4px;background:var(--ink);border:3px solid var(--lane);transform:rotate(45deg)}
 .leaflet-container{font-family:var(--body);background:var(--bg)}
 .dark-tiles .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.7)}
+.results .tagl{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--lane);color:#2B2100;margin-left:6px;vertical-align:1px}
+.results .addp{color:var(--accent)}
 .results .dist{float:right;font-weight:600;color:var(--accent);margin-left:8px;font-size:13px}
 .leaflet-control-attribution{font-size:10px}
 .leaflet-popup-content{margin:12px 14px;font-family:var(--body)}
@@ -200,6 +202,8 @@ const STOP_TYPES = {
   rest:    {label:'R&R / hentian', color:'#B5651D', svg:'<path d="M4 11h16M6 11V7a2 2 0 012-2h8a2 2 0 012 2v4M5 11v8M19 11v8M9 15h6"/>'}
 };
 const MODES = {car:'Kereta', moto:'Motosikal', ev:'EV'};
+const LALU_API = 'https://script.google.com/macros/s/AKfycbzuFMnCEwJ4uUL34nbtqZiw3mIaU7MbMNOhvQsD-TjsZUfe1tLMI6qfebl75SYyb3_N/exec';
+const PLACE_CATS = ['Pejabat / bisnes', 'Kedai / restoran', 'Masjid / surau', 'Sekolah / institusi', 'Taman / perumahan', 'Lain-lain'];
 
 /* ---------- storan selamat ---------- */
 const store = {
@@ -380,36 +384,104 @@ async function nomi(v, extra, signal){
   lastAt = Date.now();
   return getJSON('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=ms,en' + extra + '&q=' + encodeURIComponent(v), {signal});
 }
+/* tempat yang ditambah pengguna Lalu dan diluluskan */
+S.places = store.get('places', []);
+async function loadPlaces(){
+  try {
+    const r = await getJSON(LALU_API + '?type=tempat');
+    if (r && Array.isArray(r.tempat)) { S.places = r.tempat; store.set('places', S.places); }
+  } catch(e) {}
+}
+const norm = t => String(t || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+function localMatches(v){
+  const words = norm(v).split(' ').filter(Boolean);
+  if (!words.length) return [];
+  return S.places.filter(p => { const n = norm(p.nama + ' ' + (p.nota || '')); return words.every(w => n.includes(w)); })
+    .map(p => ({lat: p.lat, lon: p.lng, display_name: p.nama + ', ' + p.kategori, _lalu: true, _d: hav(S.me, [p.lat, p.lng])}))
+    .sort((a, b) => a._d - b._d).slice(0, 5);
+}
 async function search(v){
   if (v === lastQ && !$('#results').hidden) return;
   lastQ = v;
   if (qCtl) qCtl.abort(); qCtl = new AbortController();
   const box = $('#results');
-  box.innerHTML = '<button disabled><b>Mencari...</b><small>Utamakan tempat berhampiran anda</small></button>'; box.hidden = false;
+  const local = localMatches(v);
+  const addBtn = '<button data-add="1" class="addp"><b>+ Tak jumpa? Tambah tempat ini</b><small>Tekan lama pada peta di lokasi tempat itu, kemudian pilih "Tambah tempat di sini".</small></button>';
+  const draw = (osm, scope) => {
+    const all = local.concat(osm);
+    if (!all.length) {
+      box.innerHTML = '<button disabled><b>Tiada hasil untuk "'+esc(v)+'"</b><small>Tempat ini belum ada dalam peta. Anda boleh tambahkannya untuk semua pengguna Lalu.</small></button>' + addBtn;
+    } else {
+      box.innerHTML = (scope === 'Luar Malaysia' && !local.length ? '<button disabled><b>Tiada hasil di Malaysia</b><small>Ini hasil dari negara lain. Semak ejaan, atau tambah tempat ini.</small></button>' : '') +
+        all.map((r,i) => {
+          const parts = r.display_name.split(',');
+          return '<button data-i="'+i+'"><span class="dist">'+fmtDist(r._d)+'</span><b>'+esc(parts[0])+(r._lalu ? '<span class="tagl">Lalu</span>' : '')+'</b><small>'+esc(parts.slice(1).join(',').trim())+'</small></button>';
+        }).join('') + addBtn;
+    }
+    box.hidden = false;
+    box.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
+      const d = all[+b.dataset.i], name = d.display_name.split(',')[0];
+      box.hidden = true; $('#q').value = name;
+      setDest([+d.lat, +d.lon], name);
+    });
+    const ab = box.querySelector('[data-add]');
+    if (ab) ab.onclick = () => { box.hidden = true; S.pendingName = v; toast('Gerakkan peta ke lokasi tempat itu, kemudian tekan lama di situ.'); };
+  };
+  if (local.length) draw([], 'Berhampiran');
+  else { box.innerHTML = '<button disabled><b>Mencari...</b><small>Utamakan tempat berhampiran anda</small></button>'; box.hidden = false; }
   const d = 0.6, vb = [S.me[1]-d, S.me[0]+d, S.me[1]+d, S.me[0]-d].join(',');
   try {
     let data = await nomi(v, '&bounded=1&viewbox=' + vb, qCtl.signal), scope = 'Berhampiran';
     if (!data.length) { data = await nomi(v, '&countrycodes=my', qCtl.signal); scope = 'Malaysia'; }
-    if (!data.length) { data = await nomi(v, '', qCtl.signal); scope = 'Luar Malaysia'; }
-    if (!data.length) { box.innerHTML = '<button disabled><b>Tiada hasil untuk "'+esc(v)+'"</b><small>Tempat ini mungkin belum ada dalam peta. Cuba nama jalan atau bandar, atau tekan lama pada peta untuk pilih titik.</small></button>'; return; }
+    if (!data.length && !local.length) { data = await nomi(v, '', qCtl.signal); scope = 'Luar Malaysia'; }
     data.forEach(r => r._d = hav(S.me, [+r.lat, +r.lon]));
     data.sort((a, b) => a._d - b._d);
-    box.innerHTML = (scope === 'Luar Malaysia' ? '<button disabled><b>Tiada hasil di Malaysia</b><small>Ini hasil dari negara lain. Semak ejaan atau cuba nama jalan.</small></button>' : '') +
-      data.map((r,i) => {
-      const parts = r.display_name.split(',');
-      return '<button data-i="'+i+'"><span class="dist">'+fmtDist(r._d)+'</span><b>'+esc(parts[0])+'</b><small>'+esc(parts.slice(1).join(',').trim())+'</small></button>';
-    }).join('');
-    box.hidden = false;
-    box.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
-      const d = data[+b.dataset.i];
-      box.hidden = true; $('#q').value = d.display_name.split(',')[0];
-      setDest([+d.lat, +d.lon], d.display_name.split(',')[0]);
-    });
+    draw(data, scope);
   } catch(err) {
-    if (err.name !== 'AbortError') { lastQ = ''; box.hidden = true; toast('Carian gagal. Semak internet dan cuba lagi.'); }
+    if (err.name === 'AbortError') return;
+    lastQ = '';
+    if (local.length) draw([], 'Berhampiran'); else { box.hidden = true; toast('Carian gagal. Semak internet dan cuba lagi.'); }
   }
 }
-map.on('contextmenu', e => setDest([e.latlng.lat, e.latlng.lng], 'Titik dipilih'));
+
+/* tekan lama pada peta: pilih untuk pergi atau tambah tempat */
+let pickMarker = null;
+map.on('contextmenu', e => {
+  if (S.view === 'nav') return;
+  S.pick = [e.latlng.lat, e.latlng.lng];
+  if (pickMarker) pickMarker.remove();
+  pickMarker = L.marker(S.pick, {icon: L.divIcon({className:'', html:'<div class="dest"></div>', iconSize:[18,18], iconAnchor:[9,9]})}).addTo(map);
+  S.view = 'picked'; render();
+});
+function clearPick(){ if (pickMarker) { pickMarker.remove(); pickMarker = null; } S.pick = null; }
+function openAddPlace(){
+  const ll = S.pick; if (!ll) return;
+  const name = S.pendingName || '';
+  modal('<h3>Tambah tempat</h3><p class="note">Tempat ini akan disemak dahulu, kemudian boleh dicari oleh semua pengguna Lalu.</p>' +
+    '<div class="field" style="flex-direction:column;align-items:stretch"><label for="pl-nama" style="font-weight:600">Nama tempat</label><input id="pl-nama" maxlength="80" value="'+esc(name)+'" placeholder="Contoh: Salam Land Development" style="width:100%;text-align:left"></div>' +
+    '<div class="field" style="flex-direction:column;align-items:stretch"><label for="pl-kat" style="font-weight:600">Kategori</label><select id="pl-kat" style="font:inherit;font-size:16px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)">' + PLACE_CATS.map(c => '<option>'+esc(c)+'</option>').join('') + '</select></div>' +
+    '<div class="field" style="flex-direction:column;align-items:stretch"><label for="pl-nota" style="font-weight:600">Nota (pilihan)</label><input id="pl-nota" maxlength="200" placeholder="Contoh: Tingkat 1, sebelah bank" style="width:100%;text-align:left"></div>' +
+    '<p class="note">Lokasi: '+ll[0].toFixed(5)+', '+ll[1].toFixed(5)+' (titik yang anda tekan pada peta)</p>' +
+    '<div class="row" style="margin-top:14px"><button class="btn ghost grow" data-close>Batal</button><button class="btn primary grow" id="pl-save">Hantar</button></div>', root => {
+      const btn = root.querySelector('#pl-save');
+      btn.onclick = async () => {
+        const nama = root.querySelector('#pl-nama').value.trim();
+        if (nama.length < 3) { toast('Isi nama tempat (sekurang-kurangnya 3 huruf).'); root.querySelector('#pl-nama').focus(); return; }
+        btn.disabled = true; btn.textContent = 'Menghantar...';
+        try {
+          await fetch(LALU_API, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'},
+            body: JSON.stringify({type:'tempat', nama, kategori: root.querySelector('#pl-kat').value, nota: root.querySelector('#pl-nota').value.trim(), lat: ll[0], lng: ll[1]})});
+          closeModal(); S.pendingName = ''; clearPick(); S.view = 'idle'; render();
+          toast('Terima kasih! "' + nama + '" akan muncul dalam carian selepas disemak.');
+        } catch(e) {
+          btn.disabled = false; btn.textContent = 'Hantar';
+          toast('Tak dapat dihantar. Semak internet dan cuba lagi.');
+        }
+      };
+      setTimeout(() => { const f = root.querySelector('#pl-nama'); if (f && !name) f.focus(); }, 50);
+    });
+}
+
 
 /* ---------- laluan ---------- */
 async function setDest(ll, name){
@@ -653,8 +725,16 @@ function render(){
   if (S.view !== 'nav') $('#navbar').hidden = true;
   if (S.view === 'idle') {
     const active = S.reports.length;
-    sheet.innerHTML = '<div class="grab"></div><h2>Nak ke mana hari ni?</h2><p>Cari destinasi, atau tekan lama pada peta untuk pilih titik. Lalu tunjuk 3 laluan berserta anggaran kos dan hentian di sepanjang jalan.</p>' +
-      '<div class="list"><div class="item"><span class="ic" style="background:var(--lane);color:#2B2100">'+icon(REPORT_TYPES.hazard.svg,'',18)+'</span><div class="tx"><b>'+active+' laporan aktif berhampiran</b><small>Tekan butang kuning untuk lapor jem, banjir, lubang jalan dan lain-lain.</small></div></div></div>';
+    sheet.innerHTML = '<div class="grab"></div><h2>Nak ke mana hari ni?</h2><p>Cari destinasi, atau tekan lama pada peta untuk pilih titik. Lalu tunjuk laluan berserta anggaran kos dan hentian di sepanjang jalan.</p>' +
+      '<div class="list"><div class="item"><span class="ic" style="background:var(--lane);color:#2B2100">'+icon(REPORT_TYPES.hazard.svg,'',18)+'</span><div class="tx"><b>'+active+' laporan aktif berhampiran</b><small>Tekan butang kuning untuk lapor jem, banjir, lubang jalan dan lain-lain.</small></div></div>' +
+      '<div class="item"><span class="ic" style="background:var(--accent)">'+icon('<path d="M12 5v14M5 12h14"/>','',18)+'</span><div class="tx"><b>Tempat anda tiada dalam peta?</b><small>Tekan lama pada peta di lokasinya, kemudian pilih "Tambah tempat di sini".</small></div></div></div>';
+  } else if (S.view === 'picked') {
+    sheet.innerHTML = '<div class="grab"></div><h2>Titik dipilih</h2><p>'+S.pick[0].toFixed(5)+', '+S.pick[1].toFixed(5)+'</p>' +
+      '<div class="row" style="margin-top:12px"><button class="btn primary grow" id="goHere">Pergi ke sini</button><button class="btn lane grow" id="addHere">Tambah tempat di sini</button></div>' +
+      '<button class="btn ghost" id="pickCancel" style="width:100%;margin-top:8px">Batal</button>';
+    $('#goHere').onclick = () => { const ll = S.pick; clearPick(); setDest(ll, S.pendingName || 'Titik dipilih'); };
+    $('#addHere').onclick = openAddPlace;
+    $('#pickCancel').onclick = () => { clearPick(); S.view = 'idle'; render(); };
   } else if (S.view === 'loading') {
     sheet.innerHTML = '<div class="grab"></div><h2>Mengira laluan...</h2><p>Mencari 3 pilihan terbaik ke '+esc(S.destName)+'.</p>';
   } else if (S.view === 'error') {
@@ -716,6 +796,7 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
 
 /* mula */
 loadReports();
+loadPlaces();
 render();
 startGPS(true);
 window.addEventListener('resize', setSheetH);

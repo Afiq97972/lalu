@@ -18,6 +18,8 @@ function doPost(e) {
     // Perangkap bot: medan tersembunyi mesti kosong
     if (d.website) return json_({ ok: true });
 
+    if (d.type === 'tempat') return addPlace_(d);
+
     var nama = clean_(d.nama, 80);
     var wa = clean_(d.whatsapp, 20).replace(/[^\d+]/g, '');
     var emel = clean_(d.emel, 120);
@@ -60,6 +62,70 @@ function doPost(e) {
   }
 }
 
+/* ---------- Tempat: cadangan pengguna, diluluskan pemilik ---------- */
+var PLACE_SHEET = 'Tempat';
+var PLACE_HEADERS = ['Masa', 'ID', 'Nama tempat', 'Kategori', 'Lat', 'Lng', 'Nota', 'Status'];
+var PLACE_CATS = ['Pejabat / bisnes', 'Kedai / restoran', 'Masjid / surau', 'Sekolah / institusi', 'Taman / perumahan', 'Lain-lain'];
+
+function getPlaceSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(PLACE_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(PLACE_SHEET);
+    sheet.getRange(1, 1, 1, PLACE_HEADERS.length).setValues([PLACE_HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    var rule = SpreadsheetApp.newDataValidation().requireValueInList(['Menunggu', 'Lulus', 'Tolak'], true).build();
+    sheet.getRange(2, 8, 1000, 1).setDataValidation(rule);
+  }
+  return sheet;
+}
+
+function addPlace_(d) {
+  var nama = clean_(d.nama, 80);
+  var lat = Number(d.lat), lng = Number(d.lng);
+  if (!nama || !isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return json_({ ok: false, error: 'tidak lengkap' });
+  }
+  var cat = PLACE_CATS.indexOf(d.kategori) >= 0 ? d.kategori : 'Lain-lain';
+  var sheet = getPlaceSheet_();
+  sheet.appendRow([
+    new Date(),
+    Utilities.getUuid().slice(0, 8),
+    safe_(nama),
+    cat,
+    Math.round(lat * 1e6) / 1e6,
+    Math.round(lng * 1e6) / 1e6,
+    safe_(clean_(d.nota, 200)),
+    'Menunggu'
+  ]);
+  return json_({ ok: true });
+}
+
+// GET ?type=tempat: senarai tempat berstatus Lulus untuk carian app
+function doGet(e) {
+  var p = (e && e.parameter) || {};
+  if (p.type !== 'tempat') return json_({ ok: true });
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('tempat');
+  if (hit) return ContentService.createTextOutput(hit).setMimeType(ContentService.MimeType.JSON);
+  var sheet = getPlaceSheet_();
+  var last = sheet.getLastRow();
+  var out = [];
+  if (last > 1) {
+    var rows = sheet.getRange(2, 1, last - 1, PLACE_HEADERS.length).getValues();
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (String(r[7]).trim().toLowerCase() !== 'lulus') continue;
+      var lat = Number(r[4]), lng = Number(r[5]);
+      if (!r[2] || !isFinite(lat) || !isFinite(lng)) continue;
+      out.push({ id: String(r[1]), nama: String(r[2]).replace(/^'/, ''), kategori: String(r[3]), lat: lat, lng: lng, nota: String(r[6]).replace(/^'/, '') });
+    }
+  }
+  var body = JSON.stringify({ ok: true, tempat: out });
+  if (body.length < 90000) cache.put('tempat', body, 300);
+  return ContentService.createTextOutput(body).setMimeType(ContentService.MimeType.JSON);
+}
+
 function getSheet_() {
   var sheet = SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
   if (sheet.getLastRow() === 0 || sheet.getRange(1, 1).getValue() !== 'Masa') {
@@ -81,6 +147,11 @@ function setup() {
   for (var r = sheet.getLastRow(); r >= 2; r--) {
     if (String(sheet.getRange(r, 3).getValue()).indexOf('UJIAN Claude') === 0) sheet.deleteRow(r);
   }
+  var places = getPlaceSheet_();
+  for (var q = places.getLastRow(); q >= 2; q--) {
+    if (String(places.getRange(q, 3).getValue()).indexOf('UJIAN Claude') === 0) places.deleteRow(q);
+  }
+  CacheService.getScriptCache().remove('tempat');
 }
 
 function clean_(v, max) {
